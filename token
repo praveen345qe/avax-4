@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "hardhat/console.sol";
+
+contract Animal is ERC20, Ownable, ERC20Burnable 
+{
+    event LogMessage(string message);
+
+    enum StockType { Dumbell, Barbell, WeightPlates, SmithMachine }
+
+    mapping(StockType => uint256) public stockRates;
+    StockType public recentRedeemedStock;
+
+    constructor(address initialOwner) Ownable(initialOwner) ERC20("Degen Gaming Token", "DGT") {
+        stockRates[StockType.Dumbell] = 200;
+        stockRates[StockType.Barbell] = 400;
+        stockRates[StockType.WeightPlates] = 600;
+        stockRates[StockType.SmithMachine] = 800;
+    }
+
+    function mintTokens(address beneficiary, uint volume) public onlyOwner {
+        _mint(beneficiary, volume);
+    }
+
+    function transferTokens(address acceptor, uint volume) external {
+        require(balanceOf(msg.sender) >= volume, "INSUFFICIENT TOKENS!!");
+        _transfer(msg.sender, acceptor, volume);
+    }
+
+    function redeemForTokens(uint256 tokenAmount) public {
+        recentRedeemedStock = determineRedeemedStock(tokenAmount);
+        require(stockRates[recentRedeemedStock] > 0, "Invalid stock type");
+        require(balanceOf(msg.sender) >= stockRates[recentRedeemedStock], "INSUFFICIENT TOKENS!!");
+        _burn(msg.sender, stockRates[recentRedeemedStock]);
+        emit LogMessage("Redemption is Successful");
+    }
+
+    function getBalance() external view returns (uint256) {
+        return balanceOf(msg.sender);
+    }
+
+    function burnTokens(uint256 volume) external {
+        require(balanceOf(msg.sender) >= volume, "INSUFFICIENT TOKENS!!");
+        _burn(msg.sender, volume);
+        emit LogMessage("Tokens burned successfully");
+    }
+
+    function determineRedeemedStock(uint256 tokenAmount) internal view returns (StockType) {
+        if (stockRates[StockType.SmithMachine] <= tokenAmount) {
+            return StockType.SmithMachine;
+        } else if (stockRates[StockType.WeightPlates] <= tokenAmount) {
+            return StockType.WeightPlates;
+        } else if (stockRates[StockType.Barbell] <= tokenAmount) {
+            return StockType.Barbell;
+        } else if (stockRates[StockType.Dumbell] <= tokenAmount) {
+            return StockType.Dumbell;
+        } else {
+            revert("No stock can be redeemed with the specified token amount");
+        }
+    }
+
+    function getRecentRedeemedStock() external view returns (StockType) {
+        return recentRedeemedStock;
+    }
+}
